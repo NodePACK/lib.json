@@ -1,3 +1,4 @@
+#!/usr/bin/env node --no-warnings
 
 'use strict';
 
@@ -7,7 +8,7 @@ if (typeof Proxy == "undefined") {
 
 const FS = require("fs");
 const PATH = require("path");
-const VERBOSE = !!process.env.VERBOSE;
+let VERBOSE = !!process.env.VERBOSE;
 
 function makeLIBFor (doc, baseDir) {
 
@@ -89,4 +90,74 @@ exports.forModule = function (module) {
 
 exports.forDoc = function (doc, baseDir) {
     return makeLIBFor(doc, baseDir);
+}
+
+
+exports.docFromNodeModules = async function (baseDir) {
+    const doc = {
+        'bin': {},
+        'js': {}
+    };
+    const dir = PATH.join(baseDir, 'node_modules');
+    const packages = await FS.promises.readdir(dir);
+
+    await Promise.all(packages.map(async function (name) {
+        const descriptorPath = PATH.join(dir, name, 'package.json');
+        try {
+            const descriptor = JSON.parse(await FS.promises.readFile(descriptorPath, 'utf8'));
+            if (descriptor.bin) {
+                Object.keys(descriptor.bin).map(function (binName) {
+                    doc.bin[binName]  = PATH.join('node_modules', name, descriptor.bin[binName]);
+                });
+            }
+            doc.js[name] = PATH.join('node_modules', name);
+        } catch (err) {
+            if (err.code === 'ENOENT') return;
+            throw err;
+        }
+    }));
+
+    return doc;
+}
+
+if (require.main === module) {
+
+    const MINIMIST = require("minimist");
+
+    async function main (args) {
+        let cwd = process.cwd();
+        if ((args.verbose || args.debug) && !process.env.VERBOSE) {
+            process.env.VERBOSE = "1";
+        }
+        VERBOSE = !!process.env.VERBOSE;
+        if (args.cwd) {
+            cwd = PATH.resolve(cwd, args.cwd);
+            process.chdir(cwd);
+        }
+
+        if (
+            args._.length === 2 &&
+            args._[0] === 'from' &&
+            args._[1] === 'node_modules'
+        ) {
+            const doc = await exports.docFromNodeModules(cwd);
+
+            process.stdout.write(JSON.stringify(doc, null, 4));
+        } else {
+            throw new Error(`[lib.json] ERROR: Command not supported!`);
+        }
+    }    
+    try {
+        main(MINIMIST(process.argv.slice(2), {
+            boolean: [
+                'verbose',
+                'debug'
+            ]
+        })).catch(function (err) {
+            throw err;
+        });
+    } catch (err) {
+        console.error("[lib.json] ERROR:", err.stack);
+        process.exit(1);
+    }
 }

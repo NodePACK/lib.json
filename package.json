@@ -2,6 +2,9 @@
     "name": "lib.json",
     "version": "0.0.1",
     "main": "index.js",
+    "bin": {
+        "lib.json": "index.js"
+    },
     "scripts": {
         "test": "mocha test.js",
         "tdd": "nodemon --watch index.js --exec 'npm test'"
@@ -11,6 +14,7 @@
         "nodemon": "^1.18.9"
     },
     "dependencies": {
+        "minimist": "^1.2.0",
         "resolve": "^1.10.0"
     }
 }

@@ -1,7 +1,8 @@
 
-const ASSERT = require("assert");
-const FS = require("fs");
+const ASSERT = require('assert');
+const FS = require('fs');
 const LIB = require('.');
+const EXEC = require('child_process').execSync;
 
 
 describe('lib.json', function () {
@@ -38,6 +39,18 @@ describe('lib.json', function () {
         ASSERT.equal(lib.resolve('LIB_JSON'), __dirname);
         ASSERT.equal(lib['lib.json'] === LIB, true);
         ASSERT.equal(lib['LIB_JSON'] === LIB, true);
+    });
+
+    it('fromNodeModules', function () {
+        const result = EXEC('./index.js from node_modules').toString();
+        const doc = JSON.parse(result);
+        Object.keys(doc).map(function (name) {
+            doc[name] = Object.keys(doc[name]).length;
+        });
+        ASSERT.deepEqual(doc, {
+            bin: 12,
+            js: 192
+        });
     });
 
 });
