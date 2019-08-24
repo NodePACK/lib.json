@@ -1,20 +1,20 @@
 {
-    "name": "lib.json",
-    "version": "0.0.2",
-    "main": "index.js",
-    "bin": {
-        "lib.json": "index.js"
-    },
-    "scripts": {
-        "test": "mocha test.js",
-        "tdd": "nodemon --watch index.js --exec 'npm test'"
-    },
-    "devDependencies": {
-        "mocha": "^5.2.0",
-        "nodemon": "^1.18.9"
-    },
-    "dependencies": {
-        "minimist": "^1.2.0",
-        "resolve": "^1.10.0"
-    }
+  "name": "lib.json",
+  "version": "0.0.3",
+  "main": "index.js",
+  "bin": {
+    "lib.json": "index.js"
+  },
+  "scripts": {
+    "test": "mocha test.js",
+    "tdd": "nodemon --watch index.js --exec 'npm test'"
+  },
+  "devDependencies": {
+    "mocha": "^5.2.0",
+    "nodemon": "^1.18.9"
+  },
+  "dependencies": {
+    "minimist": "^1.2.0",
+    "resolve": "^1.10.0"
+  }
 }
