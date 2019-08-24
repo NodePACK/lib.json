@@ -204,30 +204,43 @@ exports.forDoc = function (doc, baseDir) {
 
 
 exports.docFromNodeModules = async function (baseDir) {
-    const doc = {
-        'bin': {},
-        'js': {}
-    };
-    const dir = PATH.join(baseDir, 'node_modules');
-    const packages = await FS.promises.readdir(dir);
+    try {
+        const doc = {
+            'bin': {},
+            'js': {}
+        };
+        let dir = PATH.join(baseDir, 'node_modules');
 
-    await Promise.all(packages.map(async function (name) {
-        const descriptorPath = PATH.join(dir, name, 'package.json');
-        try {
-            const descriptor = JSON.parse(await FS.promises.readFile(descriptorPath, 'utf8'));
-            if (descriptor.bin) {
-                Object.keys(descriptor.bin).map(function (binName) {
-                    doc.bin[binName]  = PATH.join('node_modules', name, descriptor.bin[binName]);
-                });
-            }
-            doc.js[name] = PATH.join('node_modules', name);
-        } catch (err) {
-            if (err.code === 'ENOENT') return;
-            throw err;
+        // When being installed as a transitive dependency the 'dir' does not exit local to our package.
+        // We need to index our parent packages as npm installs packages as flat as possible.
+        if (!FS.existsSync(dir)) {
+            dir = PATH.join(baseDir, '../../node_modules');
         }
-    }));
 
-    return doc;
+        const packages = await FS.promises.readdir(dir);
+
+        await Promise.all(packages.map(async function (name) {
+            const descriptorPath = PATH.join(dir, name, 'package.json');
+            try {
+                const descriptor = JSON.parse(await FS.promises.readFile(descriptorPath, 'utf8'));
+                if (descriptor.bin) {
+                    Object.keys(descriptor.bin).map(function (binName) {
+                        doc.bin[binName]  = PATH.join('node_modules', name, descriptor.bin[binName]);
+                    });
+                }
+                doc.js[name] = PATH.join('node_modules', name);
+            } catch (err) {
+                if (err.code === 'ENOENT') return;
+                throw err;
+            }
+        }));
+
+        return doc;
+    } catch (err) {
+        err.message += ` (while docFromNodeModules baseDir:'${baseDir}')`
+        err.stack += ` (while docFromNodeModules baseDir:'${baseDir}')`
+        throw err;
+    }
 }
 
 if (require.main === module) {
