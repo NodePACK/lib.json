@@ -152,16 +152,16 @@ function makeLIBFor (doc, baseDir, parentLib) {
     return LIB;
 }
 
-exports.forBaseDir = function (baseDir) {
+exports.forBaseDir = function (baseDir, options) {
     const baseDirs = [];
     const parts = baseDir.split('/')
     for (let i=parts.length; i > 1; i--) {
         baseDirs.push(parts.slice(0, i).join('/'));
     }
-    return exports.forBaseDirs(baseDirs);
+    return exports.forBaseDirs(baseDirs, options);
 }
 
-exports.forBaseDirs = function (baseDirs) {
+exports.forBaseDirs = function (baseDirs, options) {
     const basePaths = [];
     baseDirs.forEach(function (baseDir) {
         const parts = baseDir.split('/')
@@ -169,10 +169,11 @@ exports.forBaseDirs = function (baseDirs) {
             basePaths.push(parts.slice(0, i).join('/'));
         }
     });
-    return exports.forBasePaths(basePaths);
+    return exports.forBasePaths(basePaths, options);
 }
 
-exports.forBasePaths = function (basePaths) {
+exports.forBasePaths = function (basePaths, options) {
+    options = options || {};
     const paths = [];
     basePaths.forEach(function (path) {
         paths.push(PATH.join(path, '.~lib.json'));
@@ -189,7 +190,10 @@ exports.forBasePaths = function (basePaths) {
         }
     }
     if (!parentLib) {
-        throw new Error(`Cannot locate '[.~]lib.json' for basePaths '${basePaths.join(', ')}'!`);
+        if (options.throwOnNoConfigFileFound !== false) {
+            throw new Error(`Cannot locate '[.~]lib.json' for basePaths '${basePaths.join(', ')}'!`);
+        }
+        return {};
     }
     return parentLib;
 }

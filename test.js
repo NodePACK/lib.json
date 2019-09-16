@@ -66,16 +66,16 @@ describe('lib.json', function () {
     describe('bin', function () {
 
         it('forDoc', function () {
-            const lib = LIB.forDoc(`{
+            const bins = LIB.forDoc(`{
                 "bin": {
                     "lib.json": "index.js"
                 }
             }`, __dirname).bin;
-            ASSERT.deepEqual(Object.keys(lib), [
+            ASSERT.deepEqual(Object.keys(bins), [
                 'resolve'
             ]);
-            ASSERT.equal(lib.resolve('lib.json'), PATH.join(__dirname, 'index.js'));
-            ASSERT.equal(lib['lib.json'], PATH.join(__dirname, 'index.js'));
+            ASSERT.equal(bins.resolve('lib.json'), PATH.join(__dirname, 'index.js'));
+            ASSERT.equal(bins['lib.json'], PATH.join(__dirname, 'index.js'));
         });
 
         it('forModule', function () {
@@ -84,13 +84,13 @@ describe('lib.json', function () {
                     "lib.json": "index.js"
                 }
             }`, 'utf8');
-            const lib = LIB.forModule(module).bin;
+            const bins = LIB.forModule(module).bin;
             FS.unlinkSync('.~lib.json');
-            ASSERT.deepEqual(Object.keys(lib), [
+            ASSERT.deepEqual(Object.keys(bins), [
                 'resolve'
             ]);
-            ASSERT.equal(lib.resolve('lib.json'), PATH.join(__dirname, 'index.js'));
-            ASSERT.equal(lib['lib.json'], PATH.join(__dirname, 'index.js'));
+            ASSERT.equal(bins.resolve('lib.json'), PATH.join(__dirname, 'index.js'));
+            ASSERT.equal(bins['lib.json'], PATH.join(__dirname, 'index.js'));
         });
 
         it('forBaseDir', function () {
@@ -99,13 +99,13 @@ describe('lib.json', function () {
                     "lib.json": "index.js"
                 }
             }`, 'utf8');
-            const lib = LIB.forBaseDir(__dirname).bin;
+            const bins = LIB.forBaseDir(__dirname).bin;
             FS.unlinkSync('.~lib.json');
-            ASSERT.deepEqual(Object.keys(lib), [
+            ASSERT.deepEqual(Object.keys(bins), [
                 'resolve'
             ]);
-            ASSERT.equal(lib.resolve('lib.json'), PATH.join(__dirname, 'index.js'));
-            ASSERT.equal(lib['lib.json'], PATH.join(__dirname, 'index.js'));
+            ASSERT.equal(bins.resolve('lib.json'), PATH.join(__dirname, 'index.js'));
+            ASSERT.equal(bins['lib.json'], PATH.join(__dirname, 'index.js'));
         });
     });
 
@@ -119,6 +119,20 @@ describe('lib.json', function () {
             bin: 12,
             js: 192
         });
+    });
+
+    it('no config file', function () {
+        try {
+            LIB.forBaseDir('/tmp');
+            ASSERT.fail('Should never reach this!');
+        } catch (err) {
+            ASSERT.equal(/^Cannot locate '\[\.~\]lib\.json' for basePaths/.test(err.message), true);
+        }
+
+        const lib = LIB.forBaseDir('/tmp', {
+            throwOnNoConfigFileFound: false
+        });
+        ASSERT.deepEqual(lib, {});
     });
 
     describe('NODE_PATH', function () {
