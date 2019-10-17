@@ -221,12 +221,12 @@ exports.docFromNodeModules = async function (baseDir) {
             dir = PATH.join(baseDir, '../../node_modules');
         }
 
-        const packages = await FS.promises.readdir(dir);
+        const packages = await FS.readdirSync(dir);
 
         await Promise.all(packages.map(async function (name) {
             const descriptorPath = PATH.join(dir, name, 'package.json');
             try {
-                const descriptor = JSON.parse(await FS.promises.readFile(descriptorPath, 'utf8'));
+                const descriptor = JSON.parse(await FS.readFileSync(descriptorPath, 'utf8'));
                 if (descriptor.bin) {
                     Object.keys(descriptor.bin).map(function (binName) {
                         doc.bin[binName]  = PATH.join('node_modules', name, descriptor.bin[binName]);
