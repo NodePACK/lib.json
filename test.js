@@ -117,7 +117,7 @@ describe('lib.json', function () {
         });
         ASSERT.deepEqual(doc, {
             bin: 12,
-            js: 192
+            js: 195
         });
     });
 
@@ -146,6 +146,23 @@ describe('lib.json', function () {
             ASSERT.deepEqual(NODE_PATH, [
                 PATH.dirname(__dirname)
             ].concat(process.env.NODE_PATH.split(':').reverse()));    
+        });
+    });
+
+    it('docFromFilepathsInOwnAndParent', async function () {
+        const doc = await LIB.docFromFilepathsInOwnAndParent(__dirname, {
+            'package.json': 'descriptors',
+            '.gitignore': 'gitignore'
+        }, {
+            maxLevels: 2
+        });
+        ASSERT.deepEqual(doc, {
+            "descriptors": {
+                "lib.json": "package.json"
+            },
+            "gitignore": {
+                "lib.json": ".gitignore"
+            }
         });
     });
 

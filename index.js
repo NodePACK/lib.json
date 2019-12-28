@@ -6,7 +6,7 @@ if (typeof Proxy == "undefined") {
     throw new Error("The JavaScript runtime does not support Proxy!");
 }
 
-const FS = require("fs");
+const FS = require("fs-extra");
 const PATH = require("path");
 let VERBOSE = !!process.env.VERBOSE;
 
@@ -215,7 +215,7 @@ exports.docFromNodeModules = async function (baseDir) {
         };
         let dir = PATH.join(baseDir, 'node_modules');
 
-        // When being installed as a transitive dependency the 'dir' does not exit local to our package.
+        // When being installed as a transitive dependency the 'dir' does not exist local to our package.
         // We need to index our parent packages as npm installs packages as flat as possible.
         if (!FS.existsSync(dir)) {
             dir = PATH.join(baseDir, '../../node_modules');
@@ -243,6 +243,69 @@ exports.docFromNodeModules = async function (baseDir) {
     } catch (err) {
         err.message += ` (while docFromNodeModules baseDir:'${baseDir}')`
         err.stack += ` (while docFromNodeModules baseDir:'${baseDir}')`
+        throw err;
+    }
+}
+
+exports.docFromFilepathsInOwnAndParent = async function (baseDir, filepaths, options) {
+    options = options || {};
+//console.log("options", options);
+    try {
+        const doc = {
+        };
+        let dir = baseDir;
+
+        let level = 0;
+        async function traverse (dir) {
+            level += 1;
+
+            let queue = Promise.resolve();
+
+            const subdirs = await FS.readdir(dir);
+
+            subdirs.forEach(function (subdir) {
+
+                const subUriParts = (options.subUri && options.subUri.split("/")) || [''];
+
+                for (let i = subUriParts.length; i >= 0; i--) {
+                    let subUri = subUriParts.slice(0, i).join('/') || '';
+
+                    Object.keys(filepaths).forEach(function (filepath) {
+                        queue = queue.then(async function () {
+                            let path = PATH.join(dir, subdir, subUri, filepath);
+                            if (await FS.exists(path)) {
+
+//console.log(" ...", subdir, subUri);
+//console.log("PATH", path);
+
+                                doc[filepaths[filepath]] = doc[filepaths[filepath]] || {};
+                                doc[filepaths[filepath]][PATH.join(subdir, subUri)] = PATH.relative(baseDir, path);
+                            }
+                        });
+                    });
+                }
+            });
+
+            await queue;
+
+            let path = PATH.dirname(dir); 
+            if (path === dir) {
+                return;
+            }
+            if (level === options.maxLevels) {
+                return;
+            }
+            return traverse(path);
+        }
+
+        await traverse(baseDir);
+
+//console.log(JSON.stringify(doc, null, 4));
+
+        return doc;
+    } catch (err) {
+        err.message += ` (while docFromFilepathsInOwnAndParent baseDir:'${baseDir}')`
+        err.stack += ` (while docFromFilepathsInOwnAndParent baseDir:'${baseDir}')`
         throw err;
     }
 }
