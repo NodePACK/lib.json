@@ -117,7 +117,7 @@ describe('lib.json', function () {
         });
         ASSERT.deepEqual(doc, {
             bin: 12,
-            js: 195
+            js: 196
         });
     });
 
@@ -143,9 +143,13 @@ describe('lib.json', function () {
                     "lib.json": "."
                 }
             }`, __dirname).NODE_PATH;
-            ASSERT.deepEqual(NODE_PATH, [
+            let expected = [
                 PATH.dirname(__dirname)
-            ].concat(process.env.NODE_PATH.split(':').reverse()));    
+            ];
+            if (process.env.NODE_PATH) {
+                expected.push(process.env.NODE_PATH.split(':').reverse());
+            }
+            ASSERT.deepEqual(NODE_PATH, expected);
         });
     });
 

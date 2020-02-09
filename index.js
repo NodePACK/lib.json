@@ -8,6 +8,7 @@ if (typeof Proxy == "undefined") {
 
 const FS = require("fs-extra");
 const PATH = require("path");
+const Promise = require("bluebird");
 let VERBOSE = !!process.env.VERBOSE;
 
 function makeLIBFor (doc, baseDir, parentLib) {
@@ -221,7 +222,7 @@ exports.docFromNodeModules = async function (baseDir) {
             dir = PATH.join(baseDir, '../../node_modules');
         }
 
-        const packages = await FS.readdirSync(dir);
+        const packages = await FS.readdir(dir);
 
         await Promise.all(packages.map(async function (name) {
             const descriptorPath = PATH.join(dir, name, 'package.json');
@@ -249,6 +250,9 @@ exports.docFromNodeModules = async function (baseDir) {
 
 exports.docFromFilepathsInOwnAndParent = async function (baseDir, filepaths, options) {
     options = options || {};
+
+    options.lookupDirs = options.lookupDirs || [''];
+
 //console.log("options", options);
     try {
         const doc = {
@@ -259,34 +263,42 @@ exports.docFromFilepathsInOwnAndParent = async function (baseDir, filepaths, opt
         async function traverse (dir) {
             level += 1;
 
-            let queue = Promise.resolve();
+            await Promise.mapSeries(options.lookupDirs, async function (lookupDir) {
 
-            const subdirs = await FS.readdir(dir);
+                const lookupPath = PATH.join(dir, lookupDir);
 
-            subdirs.forEach(function (subdir) {
-
-                const subUriParts = (options.subUri && options.subUri.split("/")) || [''];
-
-                for (let i = subUriParts.length; i >= 0; i--) {
-                    let subUri = subUriParts.slice(0, i).join('/') || '';
-
-                    Object.keys(filepaths).forEach(function (filepath) {
-                        queue = queue.then(async function () {
-                            let path = PATH.join(dir, subdir, subUri, filepath);
-                            if (await FS.exists(path)) {
-
-//console.log(" ...", subdir, subUri);
-//console.log("PATH", path);
-
-                                doc[filepaths[filepath]] = doc[filepaths[filepath]] || {};
-                                doc[filepaths[filepath]][PATH.join(subdir, subUri)] = PATH.relative(baseDir, path);
-                            }
-                        });
-                    });
+                if (!(await FS.exists(lookupPath))) {
+                    return;
                 }
-            });
 
-            await queue;
+                const subdirs = await FS.readdir(lookupPath);
+
+                let queue = Promise.resolve();
+
+                subdirs.forEach(function (subdir) {
+
+                    const subUriParts = (options.subUri && options.subUri.split("/")) || [''];
+
+                    for (let i = subUriParts.length; i >= 0; i--) {
+                        let subUri = subUriParts.slice(0, i).join('/') || '';
+
+                        Object.keys(filepaths).forEach(function (filepath) {
+                            queue = queue.then(async function () {
+                                let path = PATH.join(dir, lookupDir, subdir, subUri, filepath);
+
+                                if (await FS.exists(path)) {
+                                    doc[filepaths[filepath]] = doc[filepaths[filepath]] || {};
+                                    if (!doc[filepaths[filepath]][PATH.join(subdir, subUri)]) {
+                                        doc[filepaths[filepath]][PATH.join(subdir, subUri)] = PATH.relative(baseDir, path);
+                                    }
+                                }
+                            });
+                        });
+                    }
+                });
+
+                await queue;
+            });
 
             let path = PATH.dirname(dir); 
             if (path === dir) {

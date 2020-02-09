@@ -16,6 +16,7 @@
   "dependencies": {
     "minimist": "^1.2.0",
     "resolve": "^1.10.0",
-    "fs-extra": "^8.1.0"
+    "fs-extra": "^8.1.0",
+    "bluebird": "^3.7.2"
   }
 }
