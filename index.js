@@ -298,9 +298,26 @@ exports.docFromFilepathsInOwnAndParent = async function (baseDir, filepaths, opt
                                 let path = PATH.join(dir, lookupDir, subdir, subUri, filepath);
 
                                 if (await FS.exists(path)) {
+
+                                    let name = PATH.join(subdir, subUri);
+                                    const descriptorPath = PATH.join(dir, lookupDir, subdir, 'package.json');
+
                                     doc[filepaths[filepath]] = doc[filepaths[filepath]] || {};
-                                    if (!doc[filepaths[filepath]][PATH.join(subdir, subUri)]) {
-                                        doc[filepaths[filepath]][PATH.join(subdir, subUri)] = PATH.relative(baseDir, path);
+
+                                    if (await FS.exists(descriptorPath)) {
+                                        const descriptor = await FS.readJSON(descriptorPath);
+                                        if (
+                                            !subUri &&
+                                            name !== descriptor.name
+                                        ) {
+                                            if (!doc[filepaths[filepath]][descriptor.name]) {
+                                                doc[filepaths[filepath]][descriptor.name] = PATH.relative(baseDir, path);
+                                            }
+                                        }                 
+                                    }
+
+                                    if (!doc[filepaths[filepath]][name]) {
+                                        doc[filepaths[filepath]][name] = PATH.relative(baseDir, path);
                                     }
                                 }
                             });
