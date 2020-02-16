@@ -214,6 +214,29 @@ exports.docFromNodeModules = async function (baseDir) {
             'bin': {},
             'js': {}
         };
+
+        async function addPackageForPath (packagePath) {
+            const descriptorPath = PATH.join(packagePath, 'package.json');
+            try {
+                const descriptor = JSON.parse(await FS.readFileSync(descriptorPath, 'utf8'));
+                if (descriptor.bin) {
+                    Object.keys(descriptor.bin).map(function (binName) {
+                        doc.bin[binName]  = PATH.relative(baseDir, PATH.join(packagePath, descriptor.bin[binName]));
+                    });
+                }
+                doc.js[descriptor.name] = PATH.relative(baseDir, packagePath) || '.';
+            } catch (err) {
+                if (err.code === 'ENOENT') return;
+                throw err;
+            }
+        }
+
+        // Add own package.
+
+        await addPackageForPath(baseDir);
+
+        // Add dependencies.
+
         let dir = PATH.join(baseDir, 'node_modules');
 
         // When being installed as a transitive dependency the 'dir' does not exist local to our package.
@@ -224,20 +247,8 @@ exports.docFromNodeModules = async function (baseDir) {
 
         const packages = await FS.readdir(dir);
 
-        await Promise.all(packages.map(async function (name) {
-            const descriptorPath = PATH.join(dir, name, 'package.json');
-            try {
-                const descriptor = JSON.parse(await FS.readFileSync(descriptorPath, 'utf8'));
-                if (descriptor.bin) {
-                    Object.keys(descriptor.bin).map(function (binName) {
-                        doc.bin[binName]  = PATH.join('node_modules', name, descriptor.bin[binName]);
-                    });
-                }
-                doc.js[name] = PATH.join('node_modules', name);
-            } catch (err) {
-                if (err.code === 'ENOENT') return;
-                throw err;
-            }
+        await Promise.all(packages.map(function (name) {
+            return addPackageForPath(PATH.join(dir, name));
         }));
 
         return doc;
