@@ -313,7 +313,12 @@ exports.docFromFilepathsInOwnAndParent = async function (baseDir, filepaths, opt
                                             if (!doc[filepaths[filepath]][descriptor.name]) {
                                                 doc[filepaths[filepath]][descriptor.name] = PATH.relative(baseDir, path);
                                             }
-                                        }                 
+                                        }
+                                        if (descriptor.uid) {
+                                            if (!doc[filepaths[filepath]][descriptor.uid]) {
+                                                doc[filepaths[filepath]][descriptor.uid] = PATH.relative(baseDir, path);
+                                            }
+                                        }
                                     }
 
                                     if (!doc[filepaths[filepath]][name]) {
