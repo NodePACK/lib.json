@@ -225,6 +225,11 @@ exports.docFromNodeModules = async function (baseDir) {
                     });
                 }
                 doc.js[descriptor.name] = PATH.relative(baseDir, packagePath) || '.';
+                if (descriptor.uid) {
+                    if (!doc.js[descriptor.uid]) {
+                        doc.js[descriptor.uid] = PATH.relative(baseDir, packagePath) || '.';
+                    }
+                }
             } catch (err) {
                 if (err.code === 'ENOENT') return;
                 throw err;
