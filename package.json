@@ -1,6 +1,6 @@
 {
   "name": "lib.json",
-  "version": "0.0.6-pre.2",
+  "version": "0.0.6-pre.3",
   "main": "index.js",
   "bin": {
     "lib.json": "index.js"
