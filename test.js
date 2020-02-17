@@ -163,6 +163,10 @@ describe('lib.json', function () {
             "descriptors": {},
             "gitignore": {}
         };
+        if (PATH.basename(__dirname) !== 'lib.json') {
+            expected.descriptors['lib.json'] = "package.json";
+            expected.gitignore['lib.json'] = ".gitignore";
+        }
         expected.descriptors[PATH.basename(__dirname)] = "package.json";
         expected.gitignore[PATH.basename(__dirname)] = ".gitignore";
         ASSERT.deepEqual(doc, expected);
