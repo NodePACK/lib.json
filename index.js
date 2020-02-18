@@ -6,9 +6,11 @@ if (typeof Proxy == "undefined") {
     throw new Error("The JavaScript runtime does not support Proxy!");
 }
 
+const Promise = require("bluebird");
 const FS = require("fs-extra");
 const PATH = require("path");
-const Promise = require("bluebird");
+const GLOB = require("glob");
+GLOB.async = Promise.promisify(GLOB);
 let VERBOSE = !!process.env.VERBOSE;
 
 function makeLIBFor (doc, baseDir, parentLib) {
@@ -18,7 +20,12 @@ function makeLIBFor (doc, baseDir, parentLib) {
     }
 
     if (typeof doc === 'string') {
-        doc = JSON.parse(doc);
+        try {
+            doc = JSON.parse(doc);
+        } catch (err) {
+            console.error('doc:', doc);
+            throw err;
+        }
     }
 
     const LIB = {};
@@ -187,7 +194,12 @@ exports.forBasePaths = function (basePaths, options) {
             FS.existsSync(path) &&
             FS.statSync(path).isFile()
         ) {
-            parentLib = makeLIBFor(FS.readFileSync(path, 'utf8'), PATH.dirname(path), parentLib);
+            try {
+                parentLib = makeLIBFor(FS.readFileSync(path, 'utf8'), PATH.dirname(path), parentLib);
+            } catch (err) {
+                console.error('path:', path);
+                throw err;
+            }
         }
     }
     if (!parentLib) {
@@ -217,8 +229,11 @@ exports.docFromNodeModules = async function (baseDir) {
 
         async function addPackageForPath (packagePath) {
             const descriptorPath = PATH.join(packagePath, 'package.json');
+            if (!(await FS.exists(descriptorPath))) {
+                return;
+            }
             try {
-                const descriptor = JSON.parse(await FS.readFileSync(descriptorPath, 'utf8'));
+                const descriptor = JSON.parse(await FS.readFile(descriptorPath, 'utf8'));
                 if (descriptor.bin) {
                     Object.keys(descriptor.bin).map(function (binName) {
                         doc.bin[binName]  = PATH.relative(baseDir, PATH.join(packagePath, descriptor.bin[binName]));
@@ -242,19 +257,30 @@ exports.docFromNodeModules = async function (baseDir) {
 
         // Add dependencies.
 
-        let dir = PATH.join(baseDir, 'node_modules');
+        /*
+        // NOTE: Cannot run 'lib.json' from a postinstall script. Needs to run from 'cwd' after install is complete.
 
         // When being installed as a transitive dependency the 'dir' does not exist local to our package.
         // We need to index our parent packages as npm installs packages as flat as possible.
         if (!FS.existsSync(dir)) {
             dir = PATH.join(baseDir, '../../node_modules');
         }
+        */
 
-        const packages = await FS.readdir(dir);
+        await Promise.mapSeries([
+            '/node_modules/*',
+            '/node_modules/*/*'
+        ], async function (lookupPath) {
 
-        await Promise.all(packages.map(function (name) {
-            return addPackageForPath(PATH.join(dir, name));
-        }));
+            const paths = await GLOB.async(lookupPath, {
+                cwd: baseDir,
+                root: baseDir
+            });
+    
+            await Promise.all(paths.map(function (path) {
+                return addPackageForPath(path);
+            }));    
+        });
 
         return doc;
     } catch (err) {
@@ -281,13 +307,14 @@ exports.docFromFilepathsInOwnAndParent = async function (baseDir, filepaths, opt
 
             await Promise.mapSeries(options.lookupDirs, async function (lookupDir) {
 
-                const lookupPath = PATH.join(dir, lookupDir);
+                const lookupPath = (`/${lookupDir}/*`).replace(/[\/]+/g, '/');
 
-                if (!(await FS.exists(lookupPath))) {
-                    return;
-                }
-
-                const subdirs = await FS.readdir(lookupPath);
+                const subdirs = (await GLOB.async(lookupPath, {
+                    cwd: dir,
+                    root: dir
+                })).map(function (path) {
+                    return path.substring(dir.length + 1);
+                });
 
                 let queue = Promise.resolve();
 
@@ -300,12 +327,12 @@ exports.docFromFilepathsInOwnAndParent = async function (baseDir, filepaths, opt
 
                         Object.keys(filepaths).forEach(function (filepath) {
                             queue = queue.then(async function () {
-                                let path = PATH.join(dir, lookupDir, subdir, subUri, filepath);
+                                let path = PATH.join(dir, subdir, subUri, filepath);
 
                                 if (await FS.exists(path)) {
 
                                     let name = PATH.join(subdir, subUri);
-                                    const descriptorPath = PATH.join(dir, lookupDir, subdir, 'package.json');
+                                    const descriptorPath = PATH.join(dir, subdir, 'package.json');
 
                                     doc[filepaths[filepath]] = doc[filepaths[filepath]] || {};
 
